@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 import org.hamcrest.core.IsNull;
@@ -32,10 +33,12 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
-import com.challenge.tprovoost.Application;
-import com.challenge.tprovoost.Transaction;
-import com.challenge.tprovoost.TransactionController;
-
+/**
+ * Class under test : {@link TransactionController}.
+ * 
+ * @author Thomas Provoost
+ *
+ */
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = Application.class)
 @WebAppConfiguration
@@ -55,7 +58,7 @@ public class TransactionControllerTest {
 	/** Spring Mock MVC used to contact the mock server. */
 	private MockMvc mockMvc;
 
-	/** The content type of JSON requests. */
+	/** The JSON content type of HTTP requests. */
 	private MediaType contentType = new MediaType(MediaType.APPLICATION_JSON.getType(),
 			MediaType.APPLICATION_JSON.getSubtype(), Charset.forName("utf8"));
 
@@ -78,9 +81,15 @@ public class TransactionControllerTest {
 		this.mockMvc = webAppContextSetup(ctx).build();
 	}
 
+	/**
+	 * Method under test :
+	 * {@link TransactionController#sum(Long, LinkedHashMap)}
+	 * 
+	 * @throws Exception
+	 */
 	@Test
 	public void testSum() throws Exception {
-		LinkedHashMap<Long, Transaction> transactions = new LinkedHashMap<>();
+		HashMap<Long, Transaction> transactions = new HashMap<>();
 		transactions.put(T1_ID, new Transaction(T1_AMOUNT, T1_TYPE));
 		transactions.put(T2_ID, new Transaction(T2_AMOUNT, T2_TYPE, T1_ID));
 
@@ -91,15 +100,27 @@ public class TransactionControllerTest {
 		assertEquals(expectedSum11, TransactionController.sum(11L, transactions), 0);
 	}
 
+	/**
+	 * Case : Single transaction created.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#transactionPUT(String, Transaction)}
+	 */
 	@Test
 	public void createTransaction() throws Exception {
-		String bookmarkJson = json(new Transaction(5000d, "cars"));
+		String bookmarkJson = json(new Transaction(T1_AMOUNT, T1_TYPE));
 		this.mockMvc.perform(put("/transactionservice/transaction/" + T1_ID)
 				.contentType(contentType)
 				.content(bookmarkJson))
 				.andExpect(status().isOk());
 	}
 
+	/**
+	 * Case : Two transactions created.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#transactionPUT(String, Transaction)}
+	 */
 	@Test
 	public void createTransactions() throws Exception {
 		String bookmarkJson = json(new Transaction(T1_AMOUNT, T1_TYPE));
@@ -115,6 +136,12 @@ public class TransactionControllerTest {
 				.andExpect(status().isOk());
 	}
 
+	/**
+	 * Populates the server with two transactions, then reads the first one.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#transactionGET(String)}
+	 */
 	@Test
 	public void readSingleTransaction() throws Exception {
 		createTransactions();
@@ -128,13 +155,28 @@ public class TransactionControllerTest {
 				.andExpect(jsonPath("$.parent_id", IsNull.nullValue()));
 	}
 
+	/**
+	 * Populates the server with two transactions, then reads an unknown one.
+	 * Expecting a NOT_FOUND result.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#transactionGET(String)}
+	 */
 	@Test
 	public void transactionNotFound() throws Exception {
+		createTransactions();
 		mockMvc.perform(get("/transactionservice/transaction/0")
 				.contentType(contentType))
 				.andExpect(status().isNotFound());
 	}
 
+	/**
+	 * Populates the server with two transactions, then get the list of all
+	 * transactions of type {@link #T1_TYPE}.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#type(String)}
+	 */
 	@Test
 	public void readType() throws Exception {
 		createTransactions();
@@ -146,6 +188,13 @@ public class TransactionControllerTest {
 				.andExpect(jsonPath("$[0]", is(T1_ID.intValue())));
 	}
 
+	/**
+	 * Populates the server with two transactions, then get the list of all
+	 * transactions of an unknown type. Expecting an empty list.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#type(String)}
+	 */
 	@Test
 	public void readUnknownType() throws Exception {
 		createTransactions();
@@ -156,6 +205,13 @@ public class TransactionControllerTest {
 				.andExpect(jsonPath("$", hasSize(0)));
 	}
 
+	/**
+	 * Populates the server with two transactions, then call the sum method on
+	 * {@link #T1_ID}.
+	 * 
+	 * @throws Exception
+	 * @see {@link TransactionController#sum(String)}
+	 */
 	@Test
 	public void readSum() throws Exception {
 		createTransactions();
@@ -165,6 +221,15 @@ public class TransactionControllerTest {
 				.andExpect(content().string("{\"sum\":5000.0}"));
 	}
 
+	/**
+	 * This method uses a {@link HttpMessageConverter} to convert an object into
+	 * a JSON string through a {@link MockHttpOutputMessage}.
+	 * 
+	 * @param o
+	 *            The object to transform into JSON.
+	 * @return A String containing the JSON representation of o.
+	 * @throws IOException
+	 */
 	protected String json(Object o) throws IOException {
 		MockHttpOutputMessage mockHttpOutputMessage = new MockHttpOutputMessage();
 		mappingJackson2HttpMessageConverter.write(o, MediaType.APPLICATION_JSON, mockHttpOutputMessage);

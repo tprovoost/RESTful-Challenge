@@ -1,8 +1,9 @@
 package com.challenge.tprovoost;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,19 +14,43 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Rest Controller used to handle all requests.
+ * 
+ * @author Thomas Provoost
+ *
+ */
 @RestController
 @RequestMapping("/transactionservice")
 public class TransactionController {
 
-	private LinkedHashMap<Long, Transaction> transactions = new LinkedHashMap<>();
+	/**
+	 * Map used to store all transactions in memory. ConcurrentHashMap is enough
+	 * for multiple clients access.
+	 */
+	private Map<Long, Transaction> transactions = new ConcurrentHashMap<>();
 
 	/**
 	 * This is the method used for creating Transactions and add them into the
-	 * memory.
+	 * memory. The Http request must follow this pattern : <br/>
+	 * <code>PUT /transactionservice/transaction/$transaction_id</code><br/>
+	 * <br/>
+	 * Body:<br/>
+	 * <br/>
+	 * <code>{ "amount":double,"type":string,"parent_id":long }</code><br/>
+	 * <br/>
+	 * where:<br/>
+	 * <br/>
+	 * <b>transaction_id</b>: long specifying a new transaction<br/>
+	 * <b>amount</b>: double specifying the amount<br/>
+	 * <b>type</b>: string specifying a type of the transaction.<br/>
+	 * <b>parent_id</b>: optional long that may specify the parent transaction
+	 * of this transaction.
 	 * 
 	 * @param transactionId
-	 *            : the id of the transaction.
+	 *            : the id of the transaction. Used for the storage in the map.
 	 * @param transaction
+	 *            : the transaction to put in the map.
 	 * @return
 	 */
 	@RequestMapping(value = "/transaction/{transactionId}", method = RequestMethod.PUT)
@@ -39,6 +64,17 @@ public class TransactionController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	/**
+	 * Retrieves a transaction stored in memory through its ID. This method
+	 * validates the ID first and throws a {@link TransactionNotFoundException}
+	 * if it doesn't exist.<br/>
+	 * <br/>
+	 * <code>GET /transactionservice/transaction/$transaction_id</code>
+	 * 
+	 * @param transactionId
+	 * @return The transaction :
+	 *         <code>{ "amount":double,"type":string,"parent_id":long }</code>.
+	 */
 	@RequestMapping(value = "/transaction/{transactionId}", method = RequestMethod.GET)
 	public ResponseEntity<Transaction> transactionGET(@PathVariable String transactionId) {
 
@@ -51,6 +87,17 @@ public class TransactionController {
 		return new ResponseEntity<Transaction>(transaction, HttpStatus.OK);
 	}
 
+	/**
+	 * Retrieves a JSON array of IDs of all transactions of type
+	 * <code>{type}</code>. This method validates the ID first and throws a
+	 * {@link TransactionNotFoundException} if it doesn't exist.<br/>
+	 * <br/>
+	 * <code>GET /transactionservice/types/$type</code>
+	 * 
+	 * @param transactionId
+	 * @return The transaction :
+	 *         <code>{ "amount":double,"type":string,"parent_id":long }</code>.
+	 */
 	@RequestMapping(value = "/types/{type}", method = RequestMethod.GET)
 	public ResponseEntity<List<Long>> type(@PathVariable String type) {
 
@@ -91,13 +138,19 @@ public class TransactionController {
 	 *            : id of the transaction
 	 * @return Returns the current sum.
 	 */
-	public static double sum(Long id, LinkedHashMap<Long, Transaction> transactions) {
+	public static double sum(Long id, Map<Long, Transaction> transactions) {
 		if (id == null)
 			return 0;
 		Transaction transaction = transactions.get(id);
 		return transaction.getAmount() + sum(transaction.getParent_id(), transactions);
 	}
 
+	/**
+	 * Validates an ID as a long.
+	 * 
+	 * @param transactionId
+	 * @return
+	 */
 	private Long validateId(String transactionId) {
 		try {
 			return Long.valueOf(transactionId);
@@ -106,12 +159,25 @@ public class TransactionController {
 		}
 	}
 
+	/**
+	 * Validates a transaction. If the parent ID doesn't exist in the map,
+	 * throws a {@link TransactionNotFoundException}.
+	 * 
+	 * @param transaction
+	 */
 	private void validateTransaction(Transaction transaction) {
 		Long parent_id = transaction.getParent_id();
 		if (parent_id != null && !transactions.containsKey(parent_id))
 			throw new TransactionNotFoundException("" + parent_id);
 	}
 
+	/**
+	 * Class used by the service to return a NOT_FOUND exception when a
+	 * transaction was not found with a given ID.
+	 * 
+	 * @author Thomas Provoost
+	 *
+	 */
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	class TransactionNotFoundException extends RuntimeException {
 
@@ -125,6 +191,13 @@ public class TransactionController {
 		}
 	}
 
+	/**
+	 * Class used by the service to return a BAD_REQUEST exception when an ID is
+	 * not valid.
+	 * 
+	 * @author Thomas Provoost
+	 *
+	 */
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	class IllegalFormatException extends RuntimeException {
 

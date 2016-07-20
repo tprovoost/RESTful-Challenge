@@ -1,5 +1,17 @@
 package com.challenge.tprovoost;
 
+/**
+ * Encapsulates a transaction body.<br/>
+ * <br/>
+ * <code>{ "amount":double,"type":string,"parent_id":long }</code><br/>
+ * <br/>
+ * <b>amount</b>: double specifying the amount<br/>
+ * <b>type</b>: string specifying a type of the transaction.<br/>
+ * <b>parent_id</b>: optional long that may specify the parent transaction
+ * 
+ * @author Thomas Provoost
+ *
+ */
 public class Transaction {
 
 	private Double amount;
@@ -47,5 +59,5 @@ public class Transaction {
 	public String toString() {
 		return "Transaction [amount=" + amount + ", type=" + type + ", parent_id=" + parent_id + "]";
 	}
-	
+
 }

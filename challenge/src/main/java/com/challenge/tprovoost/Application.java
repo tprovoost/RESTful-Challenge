@@ -3,6 +3,11 @@ package com.challenge.tprovoost;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+/**
+ * 
+ * @author Thomas Provoost
+ *
+ */
 @SpringBootApplication
 public class Application {
 
